@@ -1,0 +1,54 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Rubik's Cube</title>
+</head>
+
+<body>
+    <canvas id="demo-canvas" width="800px" height="800px"></canvas>
+
+    <div id="error-box">
+        <span class="error-box-title">Errors: </span>
+    </div>
+
+    <style>
+        html,
+        head,
+        body {
+            margin: 0;
+            padding: 25px;
+            background-color: #2a2a2a;
+        }
+
+        #demo-canvas {
+            width: 800px;
+            height: 800px;
+
+            background-color: #da6052;
+
+            image-rendering: crisp-edges;
+        }
+
+        #error-box {
+            color: #fd8080;
+            font-weight: 500;
+            font-size: 18pt;
+            border: 1px solid white;
+            padding: 25px;
+            margin-top: 20px;
+        }
+
+        .error-box-title {
+            color: #eee;
+            border-bottom: 1px solid gray;
+        }
+    </style>
+    <script src="dist/index.js"></script>
+</body>
+
+</html>
