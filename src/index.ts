@@ -12,12 +12,11 @@ out vec3 fragmentColor;
 
 uniform mat4 matWorld;
 uniform mat4 matProjView;
-uniform mat4 worldRotation;
 
 void main() {
   fragmentColor = vertexColor;
 
-  gl_Position = matProjView * worldRotation * matWorld * vec4(vertexPosition, 1.0);
+  gl_Position = matProjView * matWorld * vec4(vertexPosition, 1.0);
 }`;
 
 const fragmentShaderSourceCode = `#version 300 es
@@ -33,49 +32,60 @@ void main() {
 // worldRotation - rotation in world space
 
 class Cube {
-    private matWorld = mat4.create();
-    private scaleVec = vec3.create();
-    private rotation = quat.create();
+    private worldMatrix: mat4;
+    private scaleVec: vec3;
+    private rotationQuat: quat;
 
-    private numIndices = CUBE_INDICES.length;
+    constructor(private positionVec: vec3, public readonly vao: WebGLVertexArrayObject) {
+        // Position (Translation)
+        // the programmer sets the position vector during object instantiation
 
-    constructor(
-        private position: vec3,
-        public readonly vao: WebGLVertexArrayObject,
-        private rotationAngle: number = 0,
-        private rotationAxis: vec3 = vec3.fromValues(1, 0, 0),
-        private scale: number = 1
-    ) { }
+        // Scale
+        this.scaleVec = vec3.fromValues(1, 1, 1);
 
-    draw(gl: WebGL2RenderingContext, matWorldUniform: WebGLUniformLocation, worldRotationUniform: WebGLUniformLocation, theta: number, rotAxis: vec3 = vec3.fromValues(1, 0, 0)) {
-        vec3.set(this.scaleVec, this.scale, this.scale, this.scale);
+        // Rotation
+        this.rotationQuat = quat.create();
+        const rotationAngle = 0;
+        const rotationAxis = vec3.fromValues(1, 0, 0);
         quat.setAxisAngle(
-            this.rotation,
-            this.rotationAxis,
-            glMatrix.toRadian(this.rotationAngle)
+            this.rotationQuat,
+            rotationAxis,
+            glMatrix.toRadian(rotationAngle)
         );
 
+        // World Matrix
+        this.worldMatrix = mat4.create();
+    }
+
+    draw(
+        gl: WebGL2RenderingContext,
+        matWorldUniform: WebGLUniformLocation,
+        worldRotationAngle: number,
+        rotationAxis: vec3 = vec3.fromValues(1, 0, 0)
+    ) {
         mat4.fromRotationTranslationScale(
-            this.matWorld,
-            this.rotation,
-            this.position,
+            this.worldMatrix,
+            this.rotationQuat,
+            this.positionVec,
             this.scaleVec
         )
 
         // create a rotation matrix
         const worldRotationMatrix = mat4.create();
-        mat4.fromRotation(worldRotationMatrix, glMatrix.toRadian(theta), rotAxis);
+        mat4.fromRotation(worldRotationMatrix, glMatrix.toRadian(worldRotationAngle), rotationAxis);
+        mat4.multiply(this.worldMatrix, worldRotationMatrix, this.worldMatrix);
 
-        gl.uniformMatrix4fv(matWorldUniform, false, this.matWorld);
-        gl.uniformMatrix4fv(worldRotationUniform, false, worldRotationMatrix);
+        gl.uniformMatrix4fv(matWorldUniform, false, this.worldMatrix);
+
+        // TODO: after performing the rotation, I need to update the cube's position
 
         gl.bindVertexArray(this.vao);
-        gl.drawElements(gl.TRIANGLES, this.numIndices, gl.UNSIGNED_SHORT, 0);
+        gl.drawElements(gl.TRIANGLES, CUBE_INDICES.length, gl.UNSIGNED_SHORT, 0);
         gl.bindVertexArray(null);
     }
 }
 
-let globalTheta = 0, sideToRotate: string, performRotation = false;
+let sideToRotate: string, turns = 0;
 
 function loadScene() {
     const canvas = document.querySelector("#demo-canvas");
@@ -96,9 +106,8 @@ function loadScene() {
     const colorAttrib = gl.getAttribLocation(program, "vertexColor");
     const matWorldUniform = gl.getUniformLocation(program, "matWorld");
     const matProjViewUniform = gl.getUniformLocation(program, "matProjView");
-    const worldRotationUniform = gl.getUniformLocation(program, "worldRotation");
 
-    if (posAttrib < 0 || colorAttrib < 0 || !matWorldUniform || !matProjViewUniform || !worldRotationUniform) {
+    if (posAttrib < 0 || colorAttrib < 0 || !matWorldUniform || !matProjViewUniform) {
         showError(`Could not find attribs/uniforms:
             posAttrib = ${posAttrib}
             colorAttrib = ${colorAttrib}
@@ -131,73 +140,87 @@ function loadScene() {
     const matView = mat4.create();
     const matProj = mat4.create();
 
-    let lastFrameTime = performance.now();
-    let currentFrameTime, dt, localTheta = 0, cubiesToRotate, axisOfRotation;
+    const sideIndices: Record<string, number[]> = {
+        "front": [
+            2, 5, 7,
+            11, 14, 16,
+            20, 23, 25,
+        ],
+        "back": [
+            3, 6, 8,
+            12, 15, 17,
+            21, 24, 26,
+        ],
+        "top": [],
+        "bottom": [],
+        "left": [],
+        "right": [
+            0, 5, 6,
+            9, 14, 15,
+            18, 23, 24,
+        ]
+    };
+
+    const sideRotationAxes: Record<string, vec3> = {
+        "front": vec3.fromValues(0, 0, 1),
+        "back": vec3.fromValues(0, 0, -1),
+        "top": vec3.fromValues(0, 1, 0),
+        "bottom": vec3.fromValues(0, -1, 0),
+        "right": vec3.fromValues(1, 0, 0),
+        "left": vec3.fromValues(-1, 0, 0)
+    };
+
+    let angle = 0, speed = 1;
+    let cubiesToRotate: number[], axisOfRotation: vec3;
+
     const frame = () => {
-        currentFrameTime = performance.now();
-        dt = (currentFrameTime - lastFrameTime) / 1000;
-        lastFrameTime = currentFrameTime;
+        // turning - in progress
+        if (turns < 0) {
+            angle -= speed;
+        } else if (turns > 0) {
+            angle += speed;
+        }
+
+        // turning - completed
+        if (Math.abs(angle) == 90) {
+            angle = 0;
+            turns = 0;
+        }
 
         const cubies = [
-            // Top Layer (horizontal)
+            // // Top Layer (horizontal)
             new Cube(vec3.fromValues(2.25, 2.25, 0), vao), // left 1
             new Cube(vec3.fromValues(-2.25, 2.25, 0), vao),
             new Cube(vec3.fromValues(0, 2.25, 2.25), vao), // front 1
-            new Cube(vec3.fromValues(0, 2.25, -2.25), vao),
+            new Cube(vec3.fromValues(0, 2.25, -2.25), vao), // back 1
             new Cube(vec3.fromValues(0, 2.25, 0), vao),
             new Cube(vec3.fromValues(2.25, 2.25, 2.25), vao), // left 0, front 2
-            new Cube(vec3.fromValues(2.25, 2.25, -2.25), vao), // left 2
+            new Cube(vec3.fromValues(2.25, 2.25, -2.25), vao), // left 2, back 0
             new Cube(vec3.fromValues(-2.25, 2.25, 2.25), vao), // front 0
-            new Cube(vec3.fromValues(-2.25, 2.25, -2.25), vao),
+            new Cube(vec3.fromValues(-2.25, 2.25, -2.25), vao), // back 2
 
             // Middle Layer (horizontal)
             new Cube(vec3.fromValues(2.25, 0, 0), vao), // left 4
             new Cube(vec3.fromValues(-2.25, 0, 0), vao),
             new Cube(vec3.fromValues(0, 0, 2.25), vao), // front 4
-            new Cube(vec3.fromValues(0, 0, -2.25), vao),
+            new Cube(vec3.fromValues(0, 0, -2.25), vao), // back 4
             new Cube(vec3.fromValues(0, 0, 0), vao), // core
             new Cube(vec3.fromValues(2.25, 0, 2.25), vao), // left 3, front 5
-            new Cube(vec3.fromValues(2.25, 0, -2.25), vao), // left 5
+            new Cube(vec3.fromValues(2.25, 0, -2.25), vao), // left 5, back 3
             new Cube(vec3.fromValues(-2.25, 0, 2.25), vao), // front 3
-            new Cube(vec3.fromValues(-2.25, 0, -2.25), vao),
+            new Cube(vec3.fromValues(-2.25, 0, -2.25), vao), // back 5
 
             // Bottom Layer (horizontal)
             new Cube(vec3.fromValues(2.25, -2.25, 0), vao), // left 7
             new Cube(vec3.fromValues(-2.25, -2.25, 0), vao),
             new Cube(vec3.fromValues(0, -2.25, 2.25), vao), // front 7
-            new Cube(vec3.fromValues(0, -2.25, -2.25), vao),
+            new Cube(vec3.fromValues(0, -2.25, -2.25), vao), // back 7
             new Cube(vec3.fromValues(0, -2.25, 0), vao),
             new Cube(vec3.fromValues(2.25, -2.25, 2.25), vao), // left 6, front 8
-            new Cube(vec3.fromValues(2.25, -2.25, -2.25), vao), // left 8
+            new Cube(vec3.fromValues(2.25, -2.25, -2.25), vao), // left 8, back 6
             new Cube(vec3.fromValues(-2.25, -2.25, 2.25), vao), // front 6
-            new Cube(vec3.fromValues(-2.25, -2.25, -2.25), vao),
+            new Cube(vec3.fromValues(-2.25, -2.25, -2.25), vao), // back 8
         ]
-
-        const sideIndices: Record<string, number[]> = {
-            "front": [
-                2, 5, 7,
-                11, 14, 16,
-                20, 23, 25,
-            ],
-            "back": [],
-            "top": [],
-            "bottom": [],
-            "left": [
-                0, 5, 6,
-                9, 14, 15,
-                18, 23, 24,
-            ],
-            "right": []
-        };
-
-        const sideRotAxes: Record<string, vec3> = {
-            "front": vec3.fromValues(0, 0, 1),
-            "back": vec3.fromValues(0, 0, -1),
-            "top": vec3.fromValues(0, 1, 0),
-            "bottom": vec3.fromValues(0, -1, 0),
-            "left": vec3.fromValues(1, 0, 0),
-            "right": vec3.fromValues(1, 0, 0)
-        };
 
         // Render
         canvas.width = canvas.clientWidth;
@@ -229,33 +252,24 @@ function loadScene() {
 
         gl.uniformMatrix4fv(matProjViewUniform, false, matProjView);
 
-        if (performRotation && (Math.abs(localTheta) <= Math.abs(globalTheta))) {
-            localTheta += dt * 200;
-        }
+        // cubies.forEach((shape) => shape.draw(gl, matWorldUniform, 0));
         for (let i = 0; i < cubies.length; i++) {
-            // on a normal day, this should apply 0 rotation to all cubies
-            // when performRotation is set to true, it rotates sideToRotate by the given angle
-            // actually rotation is done incremental starting from 0 until it reaches the angle specified in global theta
-            if (!performRotation) {
-                cubies[i].draw(gl, matWorldUniform, worldRotationUniform, 0);
+            if (turns == 0) {
+                cubies[i].draw(gl, matWorldUniform, 0);
             } else {
-                // perform rotation
                 cubiesToRotate = sideIndices[sideToRotate];
-                axisOfRotation = sideRotAxes[sideToRotate];
+                axisOfRotation = sideRotationAxes[sideToRotate];
+
+                console.log(cubiesToRotate)
 
                 if (cubiesToRotate.includes(i)) {
-                    cubies[i].draw(gl, matWorldUniform, worldRotationUniform, localTheta, axisOfRotation);
-                } else {
-                    cubies[i].draw(gl, matWorldUniform, worldRotationUniform, 0);
+                    cubies[i].draw(gl, matWorldUniform, turns * angle, axisOfRotation);
+                }
+                else {
+                    cubies[i].draw(gl, matWorldUniform, 0);
                 }
             }
         }
-
-        // if (localTheta > globalTheta) {
-        //     localTheta = 0;
-        //     cubiesToRotate = [];
-        //     performRotation = false;
-        // }
 
         requestAnimationFrame(frame);
     }
@@ -268,34 +282,33 @@ try {
     showError("You did sth wrong!");
 }
 
-
-
 window.addEventListener("keydown", (event) => {
     if (event.key == "Shift") return;
 
-    if (event.key == "l") { // L
-        showError("NotAnError: you just pressed: " + event.key)
-        // tell the world to perform a -90 degree rotation of the left side
-        performRotation = true;
-        sideToRotate = "left";
-        globalTheta = -90;
-    } else if (event.key == "L") { // L'
-        showError("NotAnError: you just pressed: " + event.key)
-        // tell the world to perform a 90 degree rotation of the left side
-        performRotation = true;
-        sideToRotate = "left";
-        globalTheta = 90;
-    } else if (event.key == "f") { // F
-        showError("NotAnError: you just pressed: " + event.key)
-        // tell the world to perform a -90 degree rotation of the left side
-        performRotation = true;
-        sideToRotate = "front";
-        globalTheta = -90;
-    } else if (event.key == "F") { // F'
-        showError("NotAnError: you just pressed: " + event.key)
-        // tell the world to perform a 90 degree rotation of the left side
-        performRotation = true;
-        sideToRotate = "front";
-        globalTheta = 90;
+    switch (event.key) {
+        case "r":
+            showError(`You pressed ${event.key}`)
+
+            turns = -1;
+            sideToRotate = "right";
+            break;
+        case "R":
+            showError(`You pressed ${event.key}`)
+
+            turns = 1;
+            sideToRotate = "right";
+            break;
+        case "f":
+            showError(`You pressed ${event.key}`)
+
+            turns = -1;
+            sideToRotate = "front";
+            break;
+        case "F":
+            showError(`You pressed ${event.key}`)
+
+            turns = 1;
+            sideToRotate = "front";
+            break;
     }
-});
+})
