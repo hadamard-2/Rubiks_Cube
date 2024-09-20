@@ -66,6 +66,7 @@ class Cube {
         worldRotationAngle: number,
         rotationAxis: vec3 = vec3.fromValues(1, 0, 0)
     ) {
+        // Apply Transformations
         mat4.fromRotationTranslationScale(
             this.worldMatrix,
             this.rotationQuat,
@@ -73,16 +74,25 @@ class Cube {
             this.scaleVec
         )
 
-        // create a rotation matrix
-        const worldRotationMatrix = mat4.create();
-        mat4.fromRotation(worldRotationMatrix, glMatrix.toRadian(worldRotationAngle), rotationAxis);
-        mat4.multiply(this.worldMatrix, worldRotationMatrix, this.worldMatrix);
+        // Apply additional rotation for turning
+        if (worldRotationAngle !== 0) {
+            const worldRotationMatrix = mat4.create();
+            mat4.fromRotation(worldRotationMatrix, glMatrix.toRadian(worldRotationAngle), rotationAxis);
+            mat4.multiply(this.worldMatrix, worldRotationMatrix, this.worldMatrix);
+        }
 
         gl.uniformMatrix4fv(matWorldUniform, false, this.worldMatrix);
 
         gl.bindVertexArray(Cube.vao);
         gl.drawElements(gl.TRIANGLES, CUBE_INDICES.length, gl.UNSIGNED_SHORT, 0);
         gl.bindVertexArray(null);
+    }
+
+    applyRotation(worldRotationAngle: number, rotationAxis: vec3) {
+        // Apply the final rotation permanently by updating the quaternion
+        const incrementalQuat = quat.create();
+        quat.setAxisAngle(incrementalQuat, rotationAxis, glMatrix.toRadian(worldRotationAngle));
+        quat.multiply(this.rotationQuat, incrementalQuat, this.rotationQuat);
     }
 }
 
@@ -154,7 +164,7 @@ function loadScene() {
         new Cube(-2.25, 2.25, 2.25), // front 0, left 2
         new Cube(-2.25, 2.25, -2.25), // back 2, left 0
 
-        // Middle Layer (horizontal)
+        // Equator Layer (horizontal)
         new Cube(2.25, 0, 0), // right 4
         new Cube(-2.25, 0, 0), // left 4
         new Cube(0, 0, 2.25), // front 4
@@ -207,19 +217,39 @@ function loadScene() {
             0, 5, 6,
             9, 14, 15,
             18, 23, 24,
-        ]
+        ],
+        "equator": [
+            9, 10, 11,
+            12, 13, 14,
+            15, 16, 17
+        ],
+        "middle": [
+            2, 3, 4,
+            11, 12, 13,
+            20, 21, 22,
+        ],
+        "standing": [
+            0, 1, 4,
+            9, 10, 13,
+            18, 19, 22,
+        ],
     };
 
     const sideRotationAxes: Record<string, vec3> = {
         "front": vec3.fromValues(0, 0, 1),
-        "back": vec3.fromValues(0, 0, -1),
+        "standing": vec3.fromValues(0, 0, 1),
+        "back": vec3.fromValues(0, 0, 1),
+
         "top": vec3.fromValues(0, 1, 0),
-        "bottom": vec3.fromValues(0, -1, 0),
+        "equator": vec3.fromValues(0, 1, 0),
+        "bottom": vec3.fromValues(0, 1, 0),
+
         "right": vec3.fromValues(1, 0, 0),
-        "left": vec3.fromValues(-1, 0, 0)
+        "middle": vec3.fromValues(1, 0, 0),
+        "left": vec3.fromValues(1, 0, 0),
     };
 
-    let angle = 0, speed = 1;
+    let angle = 0, speed = 1.5;
     let cubiesToRotate: number[], axisOfRotation: vec3;
 
     const frame = () => {
@@ -279,6 +309,12 @@ function loadScene() {
 
         // turning - completed
         if (angle == 90) {
+            // Apply the final rotation to cubies involved in the turn
+            cubiesToRotate.forEach((index) => {
+                cubies[index].applyRotation(turns * 90, axisOfRotation);
+            });
+
+            // Reset for next turn
             angle = 0;
             turns = 0;
         }
@@ -305,24 +341,32 @@ window.addEventListener("keydown", (event) => {
     if (event.key == "Shift") return;
 
     switch (event.key.toLowerCase()) {
-        case "r":
-            handleRotation(event.key, "right");
-            break;
-        case "l":
-            handleRotation(event.key, "left");
-            break;
-        case "t":
-            handleRotation(event.key, "top");
-            break;
-        case "b":
-            handleRotation(event.key, "bottom");
-            break;
         case "f":
             handleRotation(event.key, "front");
+            break;
+        case "s":
+            handleRotation(event.key, "standing");
             break;
         case "k":
             handleRotation(event.key, "back");
             break;
+        case "t":
+            handleRotation(event.key, "top");
+            break;
+        case "e":
+            handleRotation(event.key, "equator");
+            break;
+        case "b":
+            handleRotation(event.key, "bottom");
+            break;
+        case "r":
+            handleRotation(event.key, "right");
+            break;
+        case "m":
+            handleRotation(event.key, "middle");
+            break;
+        case "l":
+            handleRotation(event.key, "left");
+            break;
     }
-
 });
