@@ -32,13 +32,16 @@ void main() {
 // worldRotation - rotation in world space
 
 class Cube {
+    static vao: WebGLVertexArrayObject;
+
     private worldMatrix: mat4;
+    private positionVec: vec3;
     private scaleVec: vec3;
     private rotationQuat: quat;
 
-    constructor(private positionVec: vec3, public readonly vao: WebGLVertexArrayObject) {
+    constructor(posX: number, posY: number, posZ: number) {
         // Position (Translation)
-        // the programmer sets the position vector during object instantiation
+        this.positionVec = vec3.fromValues(posX, posY, posZ);
 
         // Scale
         this.scaleVec = vec3.fromValues(1, 1, 1);
@@ -77,7 +80,7 @@ class Cube {
 
         gl.uniformMatrix4fv(matWorldUniform, false, this.worldMatrix);
 
-        gl.bindVertexArray(this.vao);
+        gl.bindVertexArray(Cube.vao);
         gl.drawElements(gl.TRIANGLES, CUBE_INDICES.length, gl.UNSIGNED_SHORT, 0);
         gl.bindVertexArray(null);
     }
@@ -138,39 +141,40 @@ function loadScene() {
     const matView = mat4.create();
     const matProj = mat4.create();
 
+    Cube.vao = vao;
     const cubies = [
         // Top Layer (horizontal)
-        new Cube(vec3.fromValues(2.25, 2.25, 0), vao), // right 1
-        new Cube(vec3.fromValues(-2.25, 2.25, 0), vao), // left 1
-        new Cube(vec3.fromValues(0, 2.25, 2.25), vao), // front 1
-        new Cube(vec3.fromValues(0, 2.25, -2.25), vao), // back 1
-        new Cube(vec3.fromValues(0, 2.25, 0), vao),
-        new Cube(vec3.fromValues(2.25, 2.25, 2.25), vao), // right 0, front 2
-        new Cube(vec3.fromValues(2.25, 2.25, -2.25), vao), // right 2, back 0
-        new Cube(vec3.fromValues(-2.25, 2.25, 2.25), vao), // front 0, left 2
-        new Cube(vec3.fromValues(-2.25, 2.25, -2.25), vao), // back 2, left 0
+        new Cube(2.25, 2.25, 0), // right 1
+        new Cube(-2.25, 2.25, 0), // left 1
+        new Cube(0, 2.25, 2.25), // front 1
+        new Cube(0, 2.25, -2.25), // back 1
+        new Cube(0, 2.25, 0),
+        new Cube(2.25, 2.25, 2.25), // right 0, front 2
+        new Cube(2.25, 2.25, -2.25), // right 2, back 0
+        new Cube(-2.25, 2.25, 2.25), // front 0, left 2
+        new Cube(-2.25, 2.25, -2.25), // back 2, left 0
 
         // Middle Layer (horizontal)
-        new Cube(vec3.fromValues(2.25, 0, 0), vao), // right 4
-        new Cube(vec3.fromValues(-2.25, 0, 0), vao), // left 4
-        new Cube(vec3.fromValues(0, 0, 2.25), vao), // front 4
-        new Cube(vec3.fromValues(0, 0, -2.25), vao), // back 4
-        new Cube(vec3.fromValues(0, 0, 0), vao), // core
-        new Cube(vec3.fromValues(2.25, 0, 2.25), vao), // right 3, front 5
-        new Cube(vec3.fromValues(2.25, 0, -2.25), vao), // right 5, back 3
-        new Cube(vec3.fromValues(-2.25, 0, 2.25), vao), // front 3, left 5
-        new Cube(vec3.fromValues(-2.25, 0, -2.25), vao), // back 5, left 3
+        new Cube(2.25, 0, 0), // right 4
+        new Cube(-2.25, 0, 0), // left 4
+        new Cube(0, 0, 2.25), // front 4
+        new Cube(0, 0, -2.25), // back 4
+        new Cube(0, 0, 0), // core
+        new Cube(2.25, 0, 2.25), // right 3, front 5
+        new Cube(2.25, 0, -2.25), // right 5, back 3
+        new Cube(-2.25, 0, 2.25), // front 3, left 5
+        new Cube(-2.25, 0, -2.25), // back 5, left 3
 
         // Bottom Layer (horizontal)
-        new Cube(vec3.fromValues(2.25, -2.25, 0), vao), // right 7
-        new Cube(vec3.fromValues(-2.25, -2.25, 0), vao), // left 7
-        new Cube(vec3.fromValues(0, -2.25, 2.25), vao), // front 7
-        new Cube(vec3.fromValues(0, -2.25, -2.25), vao), // back 7
-        new Cube(vec3.fromValues(0, -2.25, 0), vao),
-        new Cube(vec3.fromValues(2.25, -2.25, 2.25), vao), // right 6, front 8
-        new Cube(vec3.fromValues(2.25, -2.25, -2.25), vao), // right 8, back 6
-        new Cube(vec3.fromValues(-2.25, -2.25, 2.25), vao), // front 6, left 8
-        new Cube(vec3.fromValues(-2.25, -2.25, -2.25), vao), // back 8, left 6
+        new Cube(2.25, -2.25, 0), // right 7
+        new Cube(-2.25, -2.25, 0), // left 7
+        new Cube(0, -2.25, 2.25), // front 7
+        new Cube(0, -2.25, -2.25), // back 7
+        new Cube(0, -2.25, 0),
+        new Cube(2.25, -2.25, 2.25), // right 6, front 8
+        new Cube(2.25, -2.25, -2.25), // right 8, back 6
+        new Cube(-2.25, -2.25, 2.25), // front 6, left 8
+        new Cube(-2.25, -2.25, -2.25), // back 8, left 6
     ]
 
     const sideIndices: Record<string, number[]> = {
