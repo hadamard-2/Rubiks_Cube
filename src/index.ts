@@ -77,8 +77,6 @@ class Cube {
 
         gl.uniformMatrix4fv(matWorldUniform, false, this.worldMatrix);
 
-        // TODO: after performing the rotation, I need to update the cube's position
-
         gl.bindVertexArray(this.vao);
         gl.drawElements(gl.TRIANGLES, CUBE_INDICES.length, gl.UNSIGNED_SHORT, 0);
         gl.bindVertexArray(null);
@@ -140,6 +138,41 @@ function loadScene() {
     const matView = mat4.create();
     const matProj = mat4.create();
 
+    const cubies = [
+        // Top Layer (horizontal)
+        new Cube(vec3.fromValues(2.25, 2.25, 0), vao), // right 1
+        new Cube(vec3.fromValues(-2.25, 2.25, 0), vao), // left 1
+        new Cube(vec3.fromValues(0, 2.25, 2.25), vao), // front 1
+        new Cube(vec3.fromValues(0, 2.25, -2.25), vao), // back 1
+        new Cube(vec3.fromValues(0, 2.25, 0), vao),
+        new Cube(vec3.fromValues(2.25, 2.25, 2.25), vao), // right 0, front 2
+        new Cube(vec3.fromValues(2.25, 2.25, -2.25), vao), // right 2, back 0
+        new Cube(vec3.fromValues(-2.25, 2.25, 2.25), vao), // front 0, left 2
+        new Cube(vec3.fromValues(-2.25, 2.25, -2.25), vao), // back 2, left 0
+
+        // Middle Layer (horizontal)
+        new Cube(vec3.fromValues(2.25, 0, 0), vao), // right 4
+        new Cube(vec3.fromValues(-2.25, 0, 0), vao), // left 4
+        new Cube(vec3.fromValues(0, 0, 2.25), vao), // front 4
+        new Cube(vec3.fromValues(0, 0, -2.25), vao), // back 4
+        new Cube(vec3.fromValues(0, 0, 0), vao), // core
+        new Cube(vec3.fromValues(2.25, 0, 2.25), vao), // right 3, front 5
+        new Cube(vec3.fromValues(2.25, 0, -2.25), vao), // right 5, back 3
+        new Cube(vec3.fromValues(-2.25, 0, 2.25), vao), // front 3, left 5
+        new Cube(vec3.fromValues(-2.25, 0, -2.25), vao), // back 5, left 3
+
+        // Bottom Layer (horizontal)
+        new Cube(vec3.fromValues(2.25, -2.25, 0), vao), // right 7
+        new Cube(vec3.fromValues(-2.25, -2.25, 0), vao), // left 7
+        new Cube(vec3.fromValues(0, -2.25, 2.25), vao), // front 7
+        new Cube(vec3.fromValues(0, -2.25, -2.25), vao), // back 7
+        new Cube(vec3.fromValues(0, -2.25, 0), vao),
+        new Cube(vec3.fromValues(2.25, -2.25, 2.25), vao), // right 6, front 8
+        new Cube(vec3.fromValues(2.25, -2.25, -2.25), vao), // right 8, back 6
+        new Cube(vec3.fromValues(-2.25, -2.25, 2.25), vao), // front 6, left 8
+        new Cube(vec3.fromValues(-2.25, -2.25, -2.25), vao), // back 8, left 6
+    ]
+
     const sideIndices: Record<string, number[]> = {
         "front": [
             2, 5, 7,
@@ -151,9 +184,21 @@ function loadScene() {
             12, 15, 17,
             21, 24, 26,
         ],
-        "top": [],
-        "bottom": [],
-        "left": [],
+        "top": [
+            0, 1, 2,
+            3, 4, 5,
+            6, 7, 8
+        ],
+        "bottom": [
+            18, 19, 20,
+            21, 22, 23,
+            24, 25, 26,
+        ],
+        "left": [
+            1, 7, 8,
+            10, 16, 17,
+            19, 25, 26,
+        ],
         "right": [
             0, 5, 6,
             9, 14, 15,
@@ -174,53 +219,10 @@ function loadScene() {
     let cubiesToRotate: number[], axisOfRotation: vec3;
 
     const frame = () => {
-        // turning - in progress
-        if (turns < 0) {
-            angle -= speed;
-        } else if (turns > 0) {
+        // turning in progress
+        if (turns != 0) {
             angle += speed;
         }
-
-        // turning - completed
-        if (Math.abs(angle) == 90) {
-            angle = 0;
-            turns = 0;
-        }
-
-        const cubies = [
-            // // Top Layer (horizontal)
-            new Cube(vec3.fromValues(2.25, 2.25, 0), vao), // left 1
-            new Cube(vec3.fromValues(-2.25, 2.25, 0), vao),
-            new Cube(vec3.fromValues(0, 2.25, 2.25), vao), // front 1
-            new Cube(vec3.fromValues(0, 2.25, -2.25), vao), // back 1
-            new Cube(vec3.fromValues(0, 2.25, 0), vao),
-            new Cube(vec3.fromValues(2.25, 2.25, 2.25), vao), // left 0, front 2
-            new Cube(vec3.fromValues(2.25, 2.25, -2.25), vao), // left 2, back 0
-            new Cube(vec3.fromValues(-2.25, 2.25, 2.25), vao), // front 0
-            new Cube(vec3.fromValues(-2.25, 2.25, -2.25), vao), // back 2
-
-            // Middle Layer (horizontal)
-            new Cube(vec3.fromValues(2.25, 0, 0), vao), // left 4
-            new Cube(vec3.fromValues(-2.25, 0, 0), vao),
-            new Cube(vec3.fromValues(0, 0, 2.25), vao), // front 4
-            new Cube(vec3.fromValues(0, 0, -2.25), vao), // back 4
-            new Cube(vec3.fromValues(0, 0, 0), vao), // core
-            new Cube(vec3.fromValues(2.25, 0, 2.25), vao), // left 3, front 5
-            new Cube(vec3.fromValues(2.25, 0, -2.25), vao), // left 5, back 3
-            new Cube(vec3.fromValues(-2.25, 0, 2.25), vao), // front 3
-            new Cube(vec3.fromValues(-2.25, 0, -2.25), vao), // back 5
-
-            // Bottom Layer (horizontal)
-            new Cube(vec3.fromValues(2.25, -2.25, 0), vao), // left 7
-            new Cube(vec3.fromValues(-2.25, -2.25, 0), vao),
-            new Cube(vec3.fromValues(0, -2.25, 2.25), vao), // front 7
-            new Cube(vec3.fromValues(0, -2.25, -2.25), vao), // back 7
-            new Cube(vec3.fromValues(0, -2.25, 0), vao),
-            new Cube(vec3.fromValues(2.25, -2.25, 2.25), vao), // left 6, front 8
-            new Cube(vec3.fromValues(2.25, -2.25, -2.25), vao), // left 8, back 6
-            new Cube(vec3.fromValues(-2.25, -2.25, 2.25), vao), // front 6
-            new Cube(vec3.fromValues(-2.25, -2.25, -2.25), vao), // back 8
-        ]
 
         // Render
         canvas.width = canvas.clientWidth;
@@ -271,6 +273,12 @@ function loadScene() {
             }
         }
 
+        // turning - completed
+        if (angle == 90) {
+            angle = 0;
+            turns = 0;
+        }
+
         requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
@@ -282,33 +290,35 @@ try {
     showError("You did sth wrong!");
 }
 
+
+function handleRotation(key: string, side: string) {
+    showError(`You pressed ${key}`);
+    turns = key === key.toLowerCase() ? -1 : 1;
+    sideToRotate = side;
+}
+
 window.addEventListener("keydown", (event) => {
     if (event.key == "Shift") return;
 
-    switch (event.key) {
+    switch (event.key.toLowerCase()) {
         case "r":
-            showError(`You pressed ${event.key}`)
-
-            turns = -1;
-            sideToRotate = "right";
+            handleRotation(event.key, "right");
             break;
-        case "R":
-            showError(`You pressed ${event.key}`)
-
-            turns = 1;
-            sideToRotate = "right";
+        case "l":
+            handleRotation(event.key, "left");
+            break;
+        case "t":
+            handleRotation(event.key, "top");
+            break;
+        case "b":
+            handleRotation(event.key, "bottom");
             break;
         case "f":
-            showError(`You pressed ${event.key}`)
-
-            turns = -1;
-            sideToRotate = "front";
+            handleRotation(event.key, "front");
             break;
-        case "F":
-            showError(`You pressed ${event.key}`)
-
-            turns = 1;
-            sideToRotate = "front";
+        case "k":
+            handleRotation(event.key, "back");
             break;
     }
-})
+
+});
