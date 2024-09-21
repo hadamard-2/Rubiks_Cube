@@ -134,6 +134,7 @@ function initializeVAO(gl: WebGL2RenderingContext, program: WebGLProgram, buffer
         return null;
     }
     Cube.vao = vao;
+    
     return vao;
 }
 
@@ -254,30 +255,6 @@ window.addEventListener("keydown", (event) => {
 });
 
 function createCubies(): Cube[] {
-    // const cubies: Cube[] = [];
-    // for (let x = -1; x <= 1; x++) {
-    //     for (let y = -1; y <= 1; y++) {
-    //         for (let z = -1; z <= 1; z++) {
-    //             cubies.push(new Cube(x * 2, y * 2, z * 2));
-    //         }
-    //     }
-    // }
-
-    // const cubies = [];
-    // const coordinates = [-2.25, 0, 2.25];
-
-    // for (let y of coordinates) {
-    //     for (let x of coordinates) {
-    //         for (let z of coordinates) {
-    //             if (x !== 0 || y !== 0 || z !== 0) {
-    //                 cubies.push(new Cube(x, y, z));
-    //             }
-    //         }
-    //     }
-    // }
-
-    // cubies.forEach((cubie) => showError(cubie.toString()));
-
     const cubies = [
         // Top Layer (horizontal)
         new Cube(2.25, 2.25, 0), // right 1
@@ -317,18 +294,6 @@ function createCubies(): Cube[] {
 }
 
 function getSideIndices(): Record<string, number[]> {
-    // return {
-    //     front: [6, 7, 8, 15, 16, 17, 24, 25, 26],
-    //     standing: [3, 4, 5, 12, 13, 14, 21, 22, 23],
-    //     back: [0, 1, 2, 9, 10, 11, 18, 19, 20],
-    //     top: [0, 1, 2, 3, 4, 5, 6, 7, 8],
-    //     equator: [9, 10, 11, 12, 13, 14, 15, 16, 17],
-    //     bottom: [18, 19, 20, 21, 22, 23, 24, 25, 26],
-    //     right: [2, 5, 8, 11, 14, 17, 20, 23, 26],
-    //     middle: [1, 4, 7, 10, 13, 16, 19, 22, 25],
-    //     left: [0, 3, 6, 9, 12, 15, 18, 21, 24]
-    // };
-
     return {
         "front": [2, 5, 7, 11, 14, 16, 20, 23, 25],
         "back": [3, 6, 8, 12, 15, 17, 21, 24, 26],
