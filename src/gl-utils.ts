@@ -7,7 +7,7 @@ export function showError(errorText: string): void {
     errorBoxDiv.appendChild(errorElement);
 }
 
-export function createStaticVertexBuffer(gl: WebGL2RenderingContext, data: ArrayBuffer): WebGLBuffer | null {
+export function createStaticBuffer(gl: WebGL2RenderingContext, data: ArrayBuffer): WebGLBuffer | null {
     const buffer = gl.createBuffer();
     if (!buffer) return showErrorAndReturnNull('Failed to allocate vertex buffer');
 
@@ -29,29 +29,40 @@ export function createStaticIndexBuffer(gl: WebGL2RenderingContext, data: ArrayB
     return buffer;
 }
 
-export function create3dPosColorInterleavedVao(
+export function create3dPosColorVAO(
     gl: WebGL2RenderingContext,
-    vertexBuffer: WebGLBuffer, indexBuffer: WebGLBuffer,
+    vertexBuffer: WebGLBuffer,
+    colorBuffer: WebGLBuffer,
+    indexBuffer: WebGLBuffer,
     posAttrib: number, colorAttrib: number
-): WebGLVertexArrayObject | null {
+) {
     const vao = gl.createVertexArray();
-    if (!vao) return showErrorAndReturnNull('Failed to create VAO');
+    if (!vao) {
+        showError('Failed to create VAO');
+        return null;
+    }
 
     gl.bindVertexArray(vao);
 
-    // Enable vertex attributes for position and color
     gl.enableVertexAttribArray(posAttrib);
     gl.enableVertexAttribArray(colorAttrib);
 
+    // Vertex buffer
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.vertexAttribPointer(posAttrib, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
-    // Setup interleaved vertex attribute pointers: position and color
-    const stride = 6 * Float32Array.BYTES_PER_ELEMENT;
-    gl.vertexAttribPointer(posAttrib, 3, gl.FLOAT, false, stride, 0);
-    gl.vertexAttribPointer(colorAttrib, 3, gl.FLOAT, false, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
+    // Color buffer
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.vertexAttribPointer(colorAttrib, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
+    // Index buffer
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-    gl.bindVertexArray(null); // Unbind VAO
+    
+    gl.bindVertexArray(null);
+    
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
     return vao;
 }

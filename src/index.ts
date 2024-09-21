@@ -1,5 +1,5 @@
-import { CUBE_INDICES, CUBE_VERTICES } from "./geometry";
-import { create3dPosColorInterleavedVao, createProgram, createStaticIndexBuffer, createStaticVertexBuffer, getContext, showError } from "./gl-utils";
+import { CUBE_COLORS, CUBE_INDICES, CUBE_VERTICES } from "./geometry";
+import { create3dPosColorVAO, createProgram, createStaticIndexBuffer, createStaticBuffer, getContext, showError } from "./gl-utils";
 import { glMatrix, mat4, vec3, quat } from "gl-matrix";
 
 const vertexShaderSourceCode = `#version 300 es
@@ -109,16 +109,17 @@ function initializeProgram(gl: WebGL2RenderingContext) {
 }
 
 function initializeBuffers(gl: WebGL2RenderingContext) {
-    const vertexBuffer = createStaticVertexBuffer(gl, CUBE_VERTICES);
+    const vertexBuffer = createStaticBuffer(gl, CUBE_VERTICES);
+    const colorBuffer = createStaticBuffer(gl, CUBE_COLORS);
     const indexBuffer = createStaticIndexBuffer(gl, CUBE_INDICES);
-    if (!vertexBuffer || !indexBuffer) {
+    if (!vertexBuffer || !colorBuffer || !indexBuffer) {
         showError("Error creating vertex or index buffers.");
         return null;
     }
-    return { vertexBuffer, indexBuffer };
+    return { vertexBuffer, colorBuffer, indexBuffer };
 }
 
-function initializeVAO(gl: WebGL2RenderingContext, program: WebGLProgram, buffers: { vertexBuffer: WebGLBuffer, indexBuffer: WebGLBuffer }) {
+function initializeVAO(gl: WebGL2RenderingContext, program: WebGLProgram, buffers: { vertexBuffer: WebGLBuffer, colorBuffer: WebGLBuffer, indexBuffer: WebGLBuffer }) {
     const posAttrib = gl.getAttribLocation(program, "vertexPosition");
     const colorAttrib = gl.getAttribLocation(program, "vertexColor");
 
@@ -127,7 +128,7 @@ function initializeVAO(gl: WebGL2RenderingContext, program: WebGLProgram, buffer
         return null;
     }
 
-    const vao = create3dPosColorInterleavedVao(gl, buffers.vertexBuffer, buffers.indexBuffer, posAttrib, colorAttrib);
+    const vao = create3dPosColorVAO(gl, buffers.vertexBuffer, buffers.colorBuffer, buffers.indexBuffer, posAttrib, colorAttrib);
     if (!vao) {
         showError("Failed to create VAO.");
         return null;
