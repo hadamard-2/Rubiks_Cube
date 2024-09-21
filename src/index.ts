@@ -29,23 +29,24 @@ void main() {
   outputColor = vec4(fragmentColor, 1.0);
 }`;
 
-class Cube {
+class Cubie {
     static vao: WebGLVertexArrayObject;
     private worldMatrix: mat4 = mat4.create();
     private positionVec: vec3;
     private scaleVec: vec3 = vec3.fromValues(1, 1, 1);
     private rotationQuat: quat = quat.create();
 
-    constructor(posX: number, posY: number, posZ: number) {
-        this.positionVec = vec3.fromValues(posX, posY, posZ);
+    // location info is later used to color cubie sides
+    public readonly location: string[];
 
+    constructor(posX: number, posY: number, posZ: number, location: string[]) {
+        this.positionVec = vec3.fromValues(posX, posY, posZ);
+        this.location = location;
         quat.setAxisAngle(
             this.rotationQuat,
             vec3.fromValues(1, 0, 0),
             glMatrix.toRadian(0)
         );
-
-        this.worldMatrix = mat4.create();
     }
 
     draw(
@@ -69,7 +70,7 @@ class Cube {
         }
 
         gl.uniformMatrix4fv(matWorldUniform, false, this.worldMatrix);
-        gl.bindVertexArray(Cube.vao);
+        gl.bindVertexArray(Cubie.vao);
         gl.drawElements(gl.TRIANGLES, CUBE_INDICES.length, gl.UNSIGNED_SHORT, 0);
         gl.bindVertexArray(null);
     }
@@ -86,9 +87,6 @@ class Cube {
             z: ${this.positionVec[2]}`;
     }
 }
-
-let sideToRotate: string;
-let turns = 0;
 
 function initializeGLContext(canvas: HTMLCanvasElement): WebGL2RenderingContext | null {
     const gl = getContext(canvas);
@@ -133,10 +131,17 @@ function initializeVAO(gl: WebGL2RenderingContext, program: WebGLProgram, buffer
         showError("Failed to create VAO.");
         return null;
     }
-    Cube.vao = vao;
-    
+    Cubie.vao = vao;
+
     return vao;
 }
+
+let sideToRotate: string;
+let turns = 0;
+
+// NOTE - testing
+// sideToRotate = "back";
+// turns = 1;
 
 function loadScene() {
     const canvas = document.querySelector("#demo-canvas") as HTMLCanvasElement;
@@ -168,14 +173,19 @@ function loadScene() {
     const matView = mat4.create();
     const matProj = mat4.create();
 
-    const cubies = createCubies();
-    const sideIndices = getSideIndices();
+    const cubiesAndSideIndices = createCubies();
+    const cubies = cubiesAndSideIndices.cubies;
+    const sideIndices = cubiesAndSideIndices.sideIndices;
+
     const sideRotationAxes = getSideRotationAxes();
 
     let angle = 0;
     const speed = 1.5;
     let cubiesToRotate: number[] = [];
     let axisOfRotation: vec3;
+
+    // NOTE - testing
+    // showError(`${sideIndices[sideToRotate]}`);
 
     const renderScene = () => {
         // Check for ongoing rotation
@@ -254,57 +264,107 @@ window.addEventListener("keydown", (event) => {
     }
 });
 
-function createCubies(): Cube[] {
-    const cubies = [
-        // Top Layer (horizontal)
-        new Cube(2.25, 2.25, 0), // right 1
-        new Cube(-2.25, 2.25, 0), // left 1
-        new Cube(0, 2.25, 2.25), // front 1
-        new Cube(0, 2.25, -2.25), // back 1
-        new Cube(0, 2.25, 0),
-        new Cube(2.25, 2.25, 2.25), // right 0, front 2
-        new Cube(2.25, 2.25, -2.25), // right 2, back 0
-        new Cube(-2.25, 2.25, 2.25), // front 0, left 2
-        new Cube(-2.25, 2.25, -2.25), // back 2, left 0
 
-        // Equator Layer (horizontal)
-        new Cube(2.25, 0, 0), // right 4
-        new Cube(-2.25, 0, 0), // left 4
-        new Cube(0, 0, 2.25), // front 4
-        new Cube(0, 0, -2.25), // back 4
-        new Cube(0, 0, 0), // core
-        new Cube(2.25, 0, 2.25), // right 3, front 5
-        new Cube(2.25, 0, -2.25), // right 5, back 3
-        new Cube(-2.25, 0, 2.25), // front 3, left 5
-        new Cube(-2.25, 0, -2.25), // back 5, left 3
 
-        // Bottom Layer (horizontal)
-        new Cube(2.25, -2.25, 0), // right 7
-        new Cube(-2.25, -2.25, 0), // left 7
-        new Cube(0, -2.25, 2.25), // front 7
-        new Cube(0, -2.25, -2.25), // back 7
-        new Cube(0, -2.25, 0),
-        new Cube(2.25, -2.25, 2.25), // right 6, front 8
-        new Cube(2.25, -2.25, -2.25), // right 8, back 6
-        new Cube(-2.25, -2.25, 2.25), // front 6, left 8
-        new Cube(-2.25, -2.25, -2.25), // back 8, left 6
-    ];
 
-    return cubies;
-}
+function createCubies() {
+    const sideIndices: Record<string, number[]> = {
+        // x
+        "left": [],
+        "middle": [],
+        "right": [],
 
-function getSideIndices(): Record<string, number[]> {
-    return {
-        "front": [2, 5, 7, 11, 14, 16, 20, 23, 25],
-        "back": [3, 6, 8, 12, 15, 17, 21, 24, 26],
-        "top": [0, 1, 2, 3, 4, 5, 6, 7, 8],
-        "bottom": [18, 19, 20, 21, 22, 23, 24, 25, 26],
-        "left": [1, 7, 8, 10, 16, 17, 19, 25, 26],
-        "right": [0, 5, 6, 9, 14, 15, 18, 23, 24],
-        "equator": [9, 10, 11, 12, 13, 14, 15, 16, 17],
-        "middle": [2, 3, 4, 11, 12, 13, 20, 21, 22],
-        "standing": [0, 1, 4, 9, 10, 13, 18, 19, 22],
+        // y
+        "bottom": [],
+        "equator": [],
+        "top": [],
+
+        // z
+        "back": [],
+        "standing": [],
+        "front": [],
     };
+
+    function populateSideIndices(index: number) {
+        const cubieLocation = [];
+
+        // x
+        if (index < 9) {
+            sideIndices["left"].push(index);
+            
+            cubieLocation.push("left"); 
+        } else if (index < 18) {
+            sideIndices["middle"].push(index);
+            
+            cubieLocation.push("middle"); 
+        } else if (index < 27) {
+            sideIndices["right"].push(index);
+            
+            cubieLocation.push("right"); 
+        }
+
+        // y
+        if ([0, 1, 2].includes(index % 9)) {
+            sideIndices["bottom"].push(index);
+            
+            cubieLocation.push("bottom"); 
+        } else if ([3, 4, 5].includes(index % 9)) {
+            sideIndices["equator"].push(index);
+            
+            cubieLocation.push("equator"); 
+        } else if ([6, 7, 8].includes(index % 9)) {
+            sideIndices["top"].push(index);
+            
+            cubieLocation.push("top"); 
+        }
+
+        // z
+        if (index % 3 == 0) {
+            sideIndices["back"].push(index);
+            
+            cubieLocation.push("back"); 
+        } else if (index % 3 == 1) {
+            sideIndices["standing"].push(index);
+            
+            cubieLocation.push("standing"); 
+        } else if (index % 3 == 2) {
+            sideIndices["front"].push(index);
+            
+            cubieLocation.push("front"); 
+        }
+
+        // NOTE - this information is later going to help me define CUBE_COLORS
+        // showError(`cubie: ${index}, side: ${cubieLocation}`);
+
+        return cubieLocation;
+    }
+
+    const cubies: Cubie[] = [];
+    const coordinates = [-2.25, 0, 2.25];
+
+    let i = 0;
+    let cubieLocation;
+    for (let x of coordinates) {
+        for (let y of coordinates) {
+            for (let z of coordinates) {
+                cubieLocation =  populateSideIndices(i);
+                cubies.push(new Cubie(x, y, z, cubieLocation));
+                
+                // if (i == 14) return {cubies, sideIndices};
+                i++;
+            }
+        }
+    }
+
+    // for (let i = 0; i < cubies.length; i++) {
+    //     populateSideIndices(i);
+    // }
+
+    // for (let key in sideIndices) {
+    //     showError(`${key.toUpperCase()} ${sideIndices[key]}`);
+    // }
+
+    return { cubies, sideIndices };
 }
 
 function getSideRotationAxes(): Record<string, vec3> {
