@@ -1,9 +1,9 @@
-export const RED = [0.72, 0.13, 0.24];
-export const ORANGE = [0.94, 0.35, 0.12];
-export const WHITE = [0.87, 0.87, 0.87];
-export const YELLOW = [0.97, 0.81, 0.18];
-export const BLUE = [0.13, 0.32, 0.71];
-export const GREEN = [0.16, 0.48, 0.29];
+const RED = [0.72, 0.13, 0.24];
+const ORANGE = [0.94, 0.35, 0.12];
+const WHITE = [0.87, 0.87, 0.87];
+const YELLOW = [0.97, 0.81, 0.18];
+const BLUE = [0.13, 0.32, 0.71];
+const GREEN = [0.16, 0.48, 0.29];
 
 export const CUBE_VERTICES = new Float32Array([
     // Front

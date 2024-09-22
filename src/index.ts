@@ -1,5 +1,5 @@
 import { CUBE_COLORS, CUBE_INDICES, CUBE_VERTICES } from "./geometry";
-import { create3dPosColorVAO, createProgram, createStaticIndexBuffer, createStaticBuffer, getContext, showError, createCustomCubieSideColors } from "./gl-utils";
+import { create3dPosColorVAO, createProgram, createStaticIndexBuffer, createStaticBuffer, getContext, showError } from "./gl-utils";
 import { glMatrix, mat4, vec3, quat } from "gl-matrix";
 
 const vertexShaderSourceCode = `#version 300 es
@@ -37,16 +37,10 @@ class Cubie {
     private rotationQuat: quat = quat.create();
 
     public readonly location: string[];
-    
 
     constructor(posX: number, posY: number, posZ: number, location: string[]) {
         this.positionVec = vec3.fromValues(posX, posY, posZ);
         this.location = location;
-        quat.setAxisAngle(
-            this.rotationQuat,
-            vec3.fromValues(1, 0, 0),
-            glMatrix.toRadian(0)
-        );
     }
 
     draw(
@@ -143,7 +137,13 @@ let turns = 0;
 // sideToRotate = "back";
 // turns = 1;
 
+
 function loadScene() {
+    const horizontalSlider = document.querySelector(".horizontal") as HTMLInputElement;
+    const verticalSlider = document.querySelector(".vertical") as HTMLInputElement;
+
+    if (!horizontalSlider || !verticalSlider) return;
+
     const canvas = document.querySelector("#demo-canvas") as HTMLCanvasElement;
     if (!canvas) {
         showError("Canvas not found.");
@@ -194,8 +194,26 @@ function loadScene() {
 
         gl.useProgram(program);
 
-        mat4.lookAt(matView, vec3.fromValues(24, 24, 24), vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
-        mat4.perspective(matProj, glMatrix.toRadian(30), canvas.width / canvas.height, 0.1, 100.0);
+        const radius = 42;  // Fixed distance from the target
+        const angleX = Number(horizontalSlider.value) * Math.PI / 180;  // Horizontal rotation
+        const angleY = Number(verticalSlider.value) * Math.PI / 180;  // Vertical rotation
+        
+        const x = radius * Math.cos(angleY) * Math.sin(angleX);
+        const y = radius * Math.sin(angleY);  // Vertical movement
+        const z = radius * Math.cos(angleY) * Math.cos(angleX);
+
+        mat4.lookAt(
+            matView,
+            vec3.fromValues(x, y, z),
+            vec3.fromValues(0, 0, 0),
+            vec3.fromValues(0, 1, 0)
+        );
+        mat4.perspective(
+            matProj,
+            glMatrix.toRadian(30),
+            canvas.width / canvas.height,
+            0.1, 100.0
+        );
 
         const matProjView = mat4.create();
         mat4.multiply(matProjView, matProj, matView);

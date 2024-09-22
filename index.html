@@ -11,7 +11,10 @@
 
 <body>
     <canvas id="demo-canvas" width="800px" height="800px"></canvas>
-
+    <div>
+        <input class="horizontal slider" type="range" min="-180" max="180" steps="1">
+        <input class="vertical slider" type="range" min="-90" max="90" value="24" steps="1">
+    </div>
     <div id="error-box">
         <span class="error-box-title">Errors: </span>
     </div>
@@ -23,7 +26,6 @@
             margin: 0;
             padding: 25px;
             background-color: #2a2a2a;
-
             font-family: "JetBrains Mono";
         }
 
@@ -48,6 +50,46 @@
         .error-box-title {
             color: #eee;
             border-bottom: 1px solid gray;
+        }
+
+        /* range slider */
+        .slider {
+            appearance: none;
+
+            margin: 30px auto;
+
+            height: 10px;
+            width: 800px;
+
+            background: #6d6d6d;
+            border-radius: 5px;
+            outline: none;
+            border: none;
+        }
+
+        .vertical {
+            position: absolute;
+            top: 40%;
+            right: 20px;
+
+            transform: rotate(270deg);
+        }
+
+        /* .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #664aff;
+            cursor: pointer;
+            border-radius: 50%;
+        } */
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #cecece;
+            cursor: pointer;
+            border-radius: 50%;
         }
     </style>
     <script src="dist/index.js"></script>

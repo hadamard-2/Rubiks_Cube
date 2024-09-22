@@ -1,5 +1,3 @@
-import { CUBE_COLORS, RED, ORANGE, YELLOW, GREEN, BLUE, WHITE } from "./geometry";
-
 export function showError(errorText: string): void {
     // console.error(errorText);
     const errorBoxDiv = document.getElementById('error-box');
@@ -135,58 +133,3 @@ function showErrorAndReturnNull(message: string): null {
     showError(message);
     return null;
 }
-
-export function createCustomCubieSideColors(cubieLocation: string[]): Float32Array {
-    const irrelevantInfo = ["standing", "equator", "middle"];
-    cubieLocation = cubieLocation.filter(elem => !irrelevantInfo.includes(elem));
-    showError(`${cubieLocation}`);
-
-    const sides: Record<string, number[]> = {
-        front: RED,
-        back: ORANGE,
-        top: WHITE,
-        bottom: YELLOW,
-        right: BLUE,
-        left: GREEN
-    };
-
-    let sideColors = new Float32Array(CUBE_COLORS);
-    const DARK_GREY = [0.01, 0.01, 0.01];
-    const STRIDE = 12;
-
-    const nonVisibleSides = Object.keys(sides).filter(side => !cubieLocation.includes(side));
-    let index;
-    nonVisibleSides.forEach((side) => {
-        index = Object.keys(sides).indexOf(side);
-        sideColors = new Float32Array([
-            ...sideColors.slice(0, index * STRIDE),
-            ...DARK_GREY, ...DARK_GREY, ...DARK_GREY, ...DARK_GREY,
-            ...sideColors.slice((index + 1) * STRIDE)
-        ]);
-    });
-
-    return sideColors;
-}
-
-// function formatArray(arr: any[]) {
-//     const sides = ["FRONT", "BACK", "TOP", "BOTTOM", "RIGHT", "LEFT"];
-//     const formatted = arr.map(num => num.toFixed(2));
-//     const lines = [];
-//     for (let i = 0; i < formatted.length; i += 12) {
-//         lines.push(sides[i / 12] + ": " + formatted.slice(i, i + 12).join(", "));
-//     }
-//     return lines.join("\n");
-// }
-
-// const testCases = [
-//     { location: ["left", "bottom", "back"], label: "Test Case 1" },
-//     { location: ["top", "front", "middle"], label: "Test Case 2" },
-//     { location: ["top", "front", "right"], label: "Test Case 3" },
-//     { location: ["bottom", "right", "standing"], label: "Test Case 4" },
-//     { location: ["equator", "left", "standing"], label: "Test Case 5" },
-// ];
-
-// testCases.forEach(({ location, label }) => {
-//     const result = createCustomCubieSideColors(location);
-//     showError(`${label}:\n${formatArray(Array.from(result))}`);
-// });
