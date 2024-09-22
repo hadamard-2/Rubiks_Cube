@@ -30,23 +30,27 @@ void main() {
 }`;
 
 class Cubie {
-    static vao: WebGLVertexArrayObject;
+    // static vao: WebGLVertexArrayObject;
+
+    static program: WebGLProgram | null;
+    static vertexBuffer: WebGLBuffer | null;
+    static indexBuffer: WebGLBuffer | null;
+
     private worldMatrix: mat4 = mat4.create();
     private positionVec: vec3;
     private scaleVec: vec3 = vec3.fromValues(1, 1, 1);
     private rotationQuat: quat = quat.create();
 
     public readonly location: string[];
-    
+    private colorBuffer: WebGLBuffer | null;
 
-    constructor(posX: number, posY: number, posZ: number, location: string[]) {
+    constructor(gl: WebGL2RenderingContext, posX: number, posY: number, posZ: number, location: string[]) {
         this.positionVec = vec3.fromValues(posX, posY, posZ);
         this.location = location;
-        quat.setAxisAngle(
-            this.rotationQuat,
-            vec3.fromValues(1, 0, 0),
-            glMatrix.toRadian(0)
-        );
+
+        // Create custom color buffer for this cubie
+        const customColors = createCustomCubieSideColors(location);
+        this.colorBuffer = createStaticBuffer(gl, customColors);
     }
 
     draw(
@@ -70,9 +74,32 @@ class Cubie {
         }
 
         gl.uniformMatrix4fv(matWorldUniform, false, this.worldMatrix);
-        gl.bindVertexArray(Cubie.vao);
+
+
+        // Buffer Setup
+
+        // Bind this cubie's color buffer
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
+        gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(1);
+
+        const posAttrib = gl.getAttribLocation(Cubie.program!, "vertexPosition");
+        const colorAttrib = gl.getAttribLocation(Cubie.program!, "vertexColor");
+    
+        if (posAttrib < 0 || colorAttrib < 0) {
+            showError("Failed to get attribute locations.");
+            return null;
+        }
+    
+        gl.bindBuffer(gl.ARRAY_BUFFER, Cubie.vertexBuffer);
+        gl.vertexAttribPointer(posAttrib, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(posAttrib);
+    
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Cubie.indexBuffer);
+    
+        
         gl.drawElements(gl.TRIANGLES, CUBE_INDICES.length, gl.UNSIGNED_SHORT, 0);
-        gl.bindVertexArray(null);
+
     }
 
     applyRotation(worldRotationAngle: number, rotationAxis: vec3) {
@@ -97,7 +124,7 @@ function initializeGLContext(canvas: HTMLCanvasElement): WebGL2RenderingContext 
     return gl;
 }
 
-function initializeProgram(gl: WebGL2RenderingContext) {
+function initializeProgram(gl: WebGL2RenderingContext): WebGLProgram | null {
     const program = createProgram(gl, vertexShaderSourceCode, fragmentShaderSourceCode);
     if (!program) {
         showError("Failed to create WebGL program.");
@@ -107,34 +134,44 @@ function initializeProgram(gl: WebGL2RenderingContext) {
 }
 
 function initializeBuffers(gl: WebGL2RenderingContext) {
-    const vertexBuffer = createStaticBuffer(gl, CUBE_VERTICES);
-    const colorBuffer = createStaticBuffer(gl, CUBE_COLORS);
-    const indexBuffer = createStaticIndexBuffer(gl, CUBE_INDICES);
-    if (!vertexBuffer || !colorBuffer || !indexBuffer) {
+    const vertexBuffer = Cubie.vertexBuffer =createStaticBuffer(gl, CUBE_VERTICES);
+    const indexBuffer = Cubie.indexBuffer =createStaticIndexBuffer(gl, CUBE_INDICES);
+    if (!vertexBuffer || !indexBuffer) {
         showError("Error creating vertex or index buffers.");
         return null;
     }
-    return { vertexBuffer, colorBuffer, indexBuffer };
+
+    return { vertexBuffer, indexBuffer };
 }
 
-function initializeVAO(gl: WebGL2RenderingContext, program: WebGLProgram, buffers: { vertexBuffer: WebGLBuffer, colorBuffer: WebGLBuffer, indexBuffer: WebGLBuffer }) {
-    const posAttrib = gl.getAttribLocation(program, "vertexPosition");
-    const colorAttrib = gl.getAttribLocation(program, "vertexColor");
+// function initializeVAO(gl: WebGL2RenderingContext, program: WebGLProgram, buffers: { vertexBuffer: WebGLBuffer, indexBuffer: WebGLBuffer }) {
+//     const posAttrib = gl.getAttribLocation(program, "vertexPosition");
+//     const colorAttrib = gl.getAttribLocation(program, "vertexColor");
 
-    if (posAttrib < 0 || colorAttrib < 0) {
-        showError("Failed to get attribute locations.");
-        return null;
-    }
+//     if (posAttrib < 0 || colorAttrib < 0) {
+//         showError("Failed to get attribute locations.");
+//         return null;
+//     }
 
-    const vao = create3dPosColorVAO(gl, buffers.vertexBuffer, buffers.colorBuffer, buffers.indexBuffer, posAttrib, colorAttrib);
-    if (!vao) {
-        showError("Failed to create VAO.");
-        return null;
-    }
-    Cubie.vao = vao;
+//     const vao = gl.createVertexArray();
+//     gl.bindVertexArray(vao);
 
-    return vao;
-}
+//     gl.bindBuffer(gl.ARRAY_BUFFER, buffers.vertexBuffer);
+//     gl.vertexAttribPointer(posAttrib, 3, gl.FLOAT, false, 0, 0);
+//     gl.enableVertexAttribArray(posAttrib);
+
+//     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indexBuffer);
+
+//     gl.bindVertexArray(null);
+
+//     if (!vao) {
+//         showError("Failed to create VAO.");
+//         return null;
+//     }
+//     Cubie.vao = vao;
+
+//     return vao;
+// }
 
 let sideToRotate: string;
 let turns = 0;
@@ -150,9 +187,6 @@ function loadScene() {
         return;
     }
 
-    const { cubies, sideIndices } = createCubies();
-    const sideRotationAxes = getSideRotationAxes();
-
     const gl = initializeGLContext(canvas);
     if (!gl) return;
 
@@ -162,8 +196,12 @@ function loadScene() {
     const buffers = initializeBuffers(gl);
     if (!buffers) return;
 
-    const vao = initializeVAO(gl, program, buffers);
-    if (!vao) return;
+    // const vao = initializeVAO(gl, program, buffers);
+    // if (!vao) return;
+
+    Cubie.program = program;
+    const { cubies, sideIndices } = createCubies(gl);
+    const sideRotationAxes = getSideRotationAxes();
 
     const matProjViewUniform = gl.getUniformLocation(program, "matProjView");
     const matWorldUniform = gl.getUniformLocation(program, "matWorld");
@@ -262,7 +300,7 @@ window.addEventListener("keydown", (event) => {
 });
 
 
-function createCubies() {
+function createCubies(gl: WebGL2RenderingContext) {
     const COORDINATES = [-2.25, 0, 2.25]; // Positions for x, y, and z coordinates
     const cubies: Cubie[] = [];
 
@@ -326,7 +364,7 @@ function createCubies() {
         for (let y of COORDINATES) {
             for (let z of COORDINATES) {
                 const cubieLocation = populateSideIndices(index);
-                cubies.push(new Cubie(x, y, z, cubieLocation));
+                cubies.push(new Cubie(gl, x, y, z, cubieLocation));
                 index++;
             }
         }

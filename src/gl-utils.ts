@@ -139,7 +139,7 @@ function showErrorAndReturnNull(message: string): null {
 export function createCustomCubieSideColors(cubieLocation: string[]): Float32Array {
     const irrelevantInfo = ["standing", "equator", "middle"];
     cubieLocation = cubieLocation.filter(elem => !irrelevantInfo.includes(elem));
-    showError(`${cubieLocation}`);
+    // showError(`${cubieLocation}`);
 
     const sides: Record<string, number[]> = {
         front: RED,
