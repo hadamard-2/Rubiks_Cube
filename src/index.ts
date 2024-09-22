@@ -1,5 +1,5 @@
 import { CUBE_COLORS, CUBE_INDICES, CUBE_VERTICES } from "./geometry";
-import { create3dPosColorVAO, createProgram, createStaticIndexBuffer, createStaticBuffer, getContext, showError } from "./gl-utils";
+import { create3dPosColorVAO, createProgram, createStaticIndexBuffer, createStaticBuffer, getContext, showError, createCustomCubieSideColors } from "./gl-utils";
 import { glMatrix, mat4, vec3, quat } from "gl-matrix";
 
 const vertexShaderSourceCode = `#version 300 es
@@ -36,8 +36,8 @@ class Cubie {
     private scaleVec: vec3 = vec3.fromValues(1, 1, 1);
     private rotationQuat: quat = quat.create();
 
-    // location info is later used to color cubie sides
     public readonly location: string[];
+    
 
     constructor(posX: number, posY: number, posZ: number, location: string[]) {
         this.positionVec = vec3.fromValues(posX, posY, posZ);
@@ -150,6 +150,9 @@ function loadScene() {
         return;
     }
 
+    const { cubies, sideIndices } = createCubies();
+    const sideRotationAxes = getSideRotationAxes();
+
     const gl = initializeGLContext(canvas);
     if (!gl) return;
 
@@ -172,12 +175,6 @@ function loadScene() {
 
     const matView = mat4.create();
     const matProj = mat4.create();
-
-    const cubiesAndSideIndices = createCubies();
-    const cubies = cubiesAndSideIndices.cubies;
-    const sideIndices = cubiesAndSideIndices.sideIndices;
-
-    const sideRotationAxes = getSideRotationAxes();
 
     let angle = 0;
     const speed = 1.5;
@@ -265,107 +262,79 @@ window.addEventListener("keydown", (event) => {
 });
 
 
-
-
 function createCubies() {
+    const COORDINATES = [-2.25, 0, 2.25]; // Positions for x, y, and z coordinates
+    const cubies: Cubie[] = [];
+
     const sideIndices: Record<string, number[]> = {
         // x
-        "left": [],
-        "middle": [],
-        "right": [],
-
+        "left": [], "middle": [], "right": [],
         // y
-        "bottom": [],
-        "equator": [],
-        "top": [],
-
+        "bottom": [], "equator": [], "top": [],
         // z
-        "back": [],
-        "standing": [],
-        "front": [],
+        "back": [], "standing": [], "front": [],
     };
 
+    // Populate side indices for a given cubie index
     function populateSideIndices(index: number) {
-        const cubieLocation = [];
+        const cubieLocation: string[] = [];
 
-        // x
+        // x axis (index determines left, middle, right)
         if (index < 9) {
             sideIndices["left"].push(index);
-            
-            cubieLocation.push("left"); 
+            cubieLocation.push("left");
         } else if (index < 18) {
             sideIndices["middle"].push(index);
-            
-            cubieLocation.push("middle"); 
-        } else if (index < 27) {
+            cubieLocation.push("middle");
+        } else {
             sideIndices["right"].push(index);
-            
-            cubieLocation.push("right"); 
+            cubieLocation.push("right");
         }
 
-        // y
-        if ([0, 1, 2].includes(index % 9)) {
+        // y axis (determines bottom, equator, top)
+        if (index % 9 < 3) {
             sideIndices["bottom"].push(index);
-            
-            cubieLocation.push("bottom"); 
-        } else if ([3, 4, 5].includes(index % 9)) {
+            cubieLocation.push("bottom");
+        } else if (index % 9 < 6) {
             sideIndices["equator"].push(index);
-            
-            cubieLocation.push("equator"); 
-        } else if ([6, 7, 8].includes(index % 9)) {
+            cubieLocation.push("equator");
+        } else {
             sideIndices["top"].push(index);
-            
-            cubieLocation.push("top"); 
+            cubieLocation.push("top");
         }
 
-        // z
-        if (index % 3 == 0) {
+        // z axis (determines back, standing, front)
+        if (index % 3 === 0) {
             sideIndices["back"].push(index);
-            
-            cubieLocation.push("back"); 
-        } else if (index % 3 == 1) {
+            cubieLocation.push("back");
+        } else if (index % 3 === 1) {
             sideIndices["standing"].push(index);
-            
-            cubieLocation.push("standing"); 
-        } else if (index % 3 == 2) {
+            cubieLocation.push("standing");
+        } else {
             sideIndices["front"].push(index);
-            
-            cubieLocation.push("front"); 
+            cubieLocation.push("front");
         }
 
-        // NOTE - this information is later going to help me define CUBE_COLORS
-        // showError(`cubie: ${index}, side: ${cubieLocation}`);
+        // showError(`cubie ${index}: ${cubieLocation}`);
 
         return cubieLocation;
     }
 
-    const cubies: Cubie[] = [];
-    const coordinates = [-2.25, 0, 2.25];
-
-    let i = 0;
-    let cubieLocation;
-    for (let x of coordinates) {
-        for (let y of coordinates) {
-            for (let z of coordinates) {
-                cubieLocation =  populateSideIndices(i);
+    // Main loop to create cubies based on coordinates and index positions
+    let index = 0;
+    for (let x of COORDINATES) {
+        for (let y of COORDINATES) {
+            for (let z of COORDINATES) {
+                const cubieLocation = populateSideIndices(index);
                 cubies.push(new Cubie(x, y, z, cubieLocation));
-                
-                // if (i == 14) return {cubies, sideIndices};
-                i++;
+                index++;
             }
         }
     }
 
-    // for (let i = 0; i < cubies.length; i++) {
-    //     populateSideIndices(i);
-    // }
-
-    // for (let key in sideIndices) {
-    //     showError(`${key.toUpperCase()} ${sideIndices[key]}`);
-    // }
-
     return { cubies, sideIndices };
 }
+
 
 function getSideRotationAxes(): Record<string, vec3> {
     return {
