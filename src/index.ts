@@ -130,8 +130,9 @@ function initializeVAO(gl: WebGL2RenderingContext, program: WebGLProgram, buffer
     return vao;
 }
 
-let sideToRotate: string;
+let layerToRotate: string;
 let turns = 0;
+let inRotation = false;
 
 // NOTE - testing
 // sideToRotate = "back";
@@ -188,16 +189,32 @@ function loadScene() {
         // Check for ongoing rotation
         if (turns !== 0) {
             angle += speed;
+        } else if (rotationQueue.length > 0) {
+            // Get the next rotation from the queue if no ongoing rotation
+            const { layer, direction } = rotationQueue.shift()!;
+
+            switch (direction) {
+                case "CW":
+                    turns = -1;
+                    break;
+                case "CCW":
+                    turns = 1;
+                    break;
+                case 2:
+                    turns = 2;
+                    break;
+            }
+
+            layerToRotate = layer;
         }
 
         setupCanvas(gl, canvas);
-
         gl.useProgram(program);
 
         const radius = 42;  // Fixed distance from the target
         const angleX = Number(horizontalSlider.value) * Math.PI / 180;  // Horizontal rotation
         const angleY = Number(verticalSlider.value) * Math.PI / 180;  // Vertical rotation
-        
+
         const x = radius * Math.cos(angleY) * Math.sin(angleX);
         const y = radius * Math.sin(angleY);  // Vertical movement
         const z = radius * Math.cos(angleY) * Math.cos(angleX);
@@ -223,8 +240,8 @@ function loadScene() {
             if (turns === 0) {
                 cubies[i].draw(gl, matWorldUniform);
             } else {
-                cubiesToRotate = sideIndices[sideToRotate];
-                axisOfRotation = sideRotationAxes[sideToRotate];
+                cubiesToRotate = sideIndices[layerToRotate];
+                axisOfRotation = sideRotationAxes[layerToRotate];
 
                 if (cubiesToRotate.includes(i)) {
                     cubies[i].draw(gl, matWorldUniform, turns * angle, axisOfRotation);
@@ -254,31 +271,6 @@ function setupCanvas(gl: WebGL2RenderingContext, canvas: HTMLCanvasElement) {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.enable(gl.DEPTH_TEST);
 }
-
-function handleRotation(key: string, side: string) {
-    turns = key === key.toLowerCase() ? -1 : 1;
-    sideToRotate = side;
-}
-
-window.addEventListener("keydown", (event) => {
-    const keyMap: Record<string, string> = {
-        "f": "front",
-        "s": "standing",
-        "k": "back",
-        "t": "top",
-        "e": "equator",
-        "b": "bottom",
-        "r": "right",
-        "m": "middle",
-        "l": "left"
-    };
-
-    const side = keyMap[event.key.toLowerCase()];
-    if (side) {
-        handleRotation(event.key, side);
-    }
-});
-
 
 function createCubies() {
     const COORDINATES = [-2.25, 0, 2.25]; // Positions for x, y, and z coordinates
@@ -353,7 +345,6 @@ function createCubies() {
     return { cubies, sideIndices };
 }
 
-
 function getSideRotationAxes(): Record<string, vec3> {
     return {
         front: vec3.fromValues(0, 0, 1),
@@ -369,3 +360,51 @@ function getSideRotationAxes(): Record<string, vec3> {
 }
 
 document.addEventListener("DOMContentLoaded", loadScene);
+
+
+// function handleRotation(key: string, side: string) {
+//     turns = key === key.toLowerCase() ? -1 : 1;
+//     sideToRotate = side;
+// }
+
+// window.addEventListener("keydown", (event) => {
+//     const keyMap: Record<string, string> = {
+//         "f": "front",
+//         "s": "standing",
+//         "k": "back",
+//         "t": "top",
+//         "e": "equator",
+//         "b": "bottom",
+//         "r": "right",
+//         "m": "middle",
+//         "l": "left"
+//     };
+
+//     const side = keyMap[event.key.toLowerCase()];
+//     if (side) {
+//         handleRotation(event.key, side);
+//     }
+// });
+
+let rotationQueue: { layer: string, direction: string | number }[] = [];
+
+function rotate(layer: string, direction: string | number) {
+    const possibleLayers = ["front", "back", "top", "bottom", "right", "left", "middle", "equator", "standing"];
+    const possibleDirections = ["CW", "CCW", 2];
+
+    if (!possibleLayers.includes(layer)) {
+        console.error("Invalid layer input!");
+        return;
+    }
+
+    if (!possibleDirections.includes(direction)) {
+        console.error("Invalid direction input!");
+        return;
+    }
+
+    // Add the rotation to the queue
+    rotationQueue.push({ layer, direction });
+}
+
+// rotate("top", "CW");
+// rotate("bottom", "CCW");
